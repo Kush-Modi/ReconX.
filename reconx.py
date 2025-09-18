@@ -32,6 +32,15 @@ def fingerprint(target_url):
         print("[+] Detected Technologies:")
         for t in techs:
             print(f"  - {t}")
+        
+        # Check for specific keywords in headers for the "Presence of" requirement
+        header_str = str(headers).lower()
+        if 'php' in header_str: print("  - PHP detected (headers)")
+        if 'asp.net' in header_str: print("  - ASP.NET detected (headers)")
+        if 'node' in header_str: print("  - Node.js detected (headers)")
+        if 'apache' in header_str: print("  - Apache detected (headers)")
+        if 'nginx' in header_str: print("  - Nginx detected (headers)")
+
         print("-" * 40)
         
     except requests.RequestException as e:
