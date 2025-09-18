@@ -38,14 +38,52 @@ def fingerprint(target_url):
         print(f"[!] Fingerprinting failed: {e}")
         sys.exit(1)
 
+def scan_url(url, status_codes, output_file=None):
+    try:
+        response = requests.get(url, timeout=5, allow_redirects=False)
+        if response.status_code in status_codes:
+            size_kb = len(response.content) / 1024
+            result = f"{url}  |  {response.status_code}  |  {size_kb:.2f}KB"
+            print(result)
+            
+            if output_file:
+                with open(output_file, "a") as f:
+                    f.write(result + "\n")
+                    
+    except requests.RequestException:
+        pass
+
 def main():
     args = parse_arguments()
     base_url = normalize_url(args.url)
+    wordlist_path = args.wordlist
+
+    try:
+        status_list = [int(s.strip()) for s in args.status.split(',')]
+    except ValueError:
+        print("[!] Invalid status codes provided.")
+        sys.exit(1)
+
+    try:
+        with open(wordlist_path, 'r') as f:
+            words = [line.strip() for line in f if line.strip()]
+    except FileNotFoundError:
+        print(f"[!] Wordlist file not found: {wordlist_path}")
+        sys.exit(1)
     
     fingerprint(base_url)
     
     print(f"[*] Starting enumeration on {base_url}")
     print(f"[*] Threads: {args.threads}")
+    print(f"[*] Filtering Codes: {status_list}")
+    print("-" * 40)
+
+    if args.output:
+        open(args.output, 'w').close()
+
+    for word in words:
+        target_url = urljoin(base_url, word)
+        scan_url(target_url, status_list, args.output)
 
 if __name__ == "__main__":
     main()
