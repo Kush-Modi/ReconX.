@@ -1,7 +1,8 @@
 import argparse
-import sys
 import requests
+import concurrent.futures
 from urllib.parse import urljoin
+import sys
 
 def parse_arguments():
     parser = argparse.ArgumentParser(description="ReconX - Automated Reconnaissance Toolkit")
@@ -28,7 +29,7 @@ def fingerprint(target_url):
             techs.append(f"Server: {headers['Server']}")
         if 'X-Powered-By' in headers:
             techs.append(f"X-Powered-By: {headers['X-Powered-By']}")
-            
+        
         print("[+] Detected Technologies:")
         for t in techs:
             print(f"  - {t}")
@@ -64,35 +65,44 @@ def scan_url(url, status_codes, output_file=None):
 
 def main():
     args = parse_arguments()
+    
     base_url = normalize_url(args.url)
     wordlist_path = args.wordlist
-
+    
     try:
         status_list = [int(s.strip()) for s in args.status.split(',')]
     except ValueError:
         print("[!] Invalid status codes provided.")
         sys.exit(1)
-
+        
     try:
         with open(wordlist_path, 'r') as f:
             words = [line.strip() for line in f if line.strip()]
     except FileNotFoundError:
         print(f"[!] Wordlist file not found: {wordlist_path}")
         sys.exit(1)
-    
+
     fingerprint(base_url)
-    
+
     print(f"[*] Starting enumeration on {base_url}")
     print(f"[*] Threads: {args.threads}")
     print(f"[*] Filtering Codes: {status_list}")
     print("-" * 40)
 
     if args.output:
+        # Clear/Create output file
         open(args.output, 'w').close()
 
-    for word in words:
-        target_url = urljoin(base_url, word)
-        scan_url(target_url, status_list, args.output)
+    with concurrent.futures.ThreadPoolExecutor(max_workers=args.threads) as executor:
+        futures = []
+        for word in words:
+            target_url = urljoin(base_url, word)
+            futures.append(executor.submit(scan_url, target_url, status_list, args.output))
+        
+        concurrent.futures.wait(futures)
+
+    print("-" * 40)
+    print("[*] Scan complete.")
 
 if __name__ == "__main__":
     main()
